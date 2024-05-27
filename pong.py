@@ -12,17 +12,10 @@ WHITE = (255, 255, 255)
 GAME_SPEED = 60 # frames per second
 DEFAULT_PADDLE_SPEED = 5 # pixels
 MAX_BALL_SPEED = 10
-DEFAULT_RESET_WAIT = 10 # frames
+DEFAULT_RESET_WAIT = GAME_SPEED # frames
 
 Point = namedtuple('Point', 'x, y')
 Speed_Vector = namedtuple('Speed_Vector', 'x, y')
-
-class Direction(Enum):
-    NEUTRAL = 0
-    UP = 1
-    LEFT = 2
-    DOWN = 3
-    RIGHT = 4
 
 class Player():
     def __init__(self):
@@ -30,7 +23,6 @@ class Player():
 
     def score_points(self, points):
         self.current_score += points
-
 
 class Paddle():
     def __init__(self, global_center: Point, w, h, color:tuple, game_w, game_h):
@@ -40,7 +32,6 @@ class Paddle():
         self.w = w
         self.h = h
         self.center = global_center
-        self.direction = Direction.NEUTRAL
         self.speed = DEFAULT_PADDLE_SPEED
         self.color = color
         self.speed = Speed_Vector(0, 0)
@@ -147,7 +138,6 @@ class Ball():
         start_speed = Speed_Vector(start_speed_x, 0)
         self.change_speed(start_speed)
         print(self.speed)
-
 
 class Pong:
     def __init__(self, w=640, h=480):
@@ -293,10 +283,8 @@ class Pong:
         positive_speeds = list(range(100, 106))
 
         total_speed_possibilities = negative_speeds + positive_speeds
-        print(total_speed_possibilities)
 
         speed_y_rand = np.random.choice(total_speed_possibilities) / 100
-        #print(f"random_x, random_y {speed_x_rand}, {speed_y_rand}")
 
         return speed_x_rand, speed_y_rand
 
@@ -308,7 +296,6 @@ class Pong:
         # move balls
         for ball in self.balls:
             ball.move_by_speed()
-            #print(ball.speed)
 
     def render_paddles(self):
         for paddle in self.paddles:

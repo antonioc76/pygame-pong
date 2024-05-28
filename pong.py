@@ -10,24 +10,37 @@ BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 
 GAME_SPEED = 60 # frames per second
-DEFAULT_PADDLE_SPEED = 5 # pixels
+DEFAULT_PADDLE_SPEED = 6 # pixels
 MAX_BALL_SPEED_X = 10
 MAX_BALL_SPEED_Y = 20
-MAX_MAGNITUDE = np.sqrt(10**2 + 20**2)
+MAX_MAGNITUDE = np.sqrt(MAX_BALL_SPEED_X**2 + MAX_BALL_SPEED_Y**2)
 DEFAULT_RESET_WAIT = GAME_SPEED # frames
 MAX_MOMENTUM = 100 # must be divisible by 10. Can be left alone, just tweak the scaling
 MOMENTUM_STEPS = MAX_MOMENTUM / np.gcd(MAX_MOMENTUM, 10)
 MOMENTUM_SCALING = 0.5 # 1 means standard rate of momentum scaling
 
+WINNING_SCORE = 5
+
 Point = namedtuple('Point', 'x, y')
 Speed_Vector = namedtuple('Speed_Vector', 'x, y')
 
 class Player():
-    def __init__(self):
+    def __init__(self, name):
+        self.name = name
         self.current_score = 0
+        self.win = False
 
     def score_points(self, points):
         self.current_score += points
+
+    def check_win(self):
+        if self.current_score >= WINNING_SCORE:
+            self.win = True
+            return True
+        
+    def reset(self):
+        self.current_score = 0
+        self.win = 0
 
 class Paddle():
     def __init__(self, global_center: Point, w, h, color:tuple, game_w, game_h):
@@ -168,7 +181,7 @@ class Ball():
         x_speed_scale = np.random.randint(100, 150) / 100
 
         # add y speed based on momentum and current ball x speed
-        max_possible_y_speed = abs(self.speed.x)
+        max_possible_y_speed = abs(self.speed.x) * (MAX_MOMENTUM / 100)
         min_possible_y_speed = 0
 
         # generate possible y speeds
@@ -212,11 +225,13 @@ class Pong:
         pygame.font.init()
         self.font = pygame.font.Font('./Lato-Black.ttf', 30)
         self.initialize_players()
+
+        self.first_serve = False
         self.initialize_gameobjects()
 
     def initialize_players(self):
-        self.player1 = Player()
-        self.player2 = Player()
+        self.player1 = Player("Tony")
+        self.player2 = Player("Hojae")
         self.players = [self.player1, self.player2]
 
     def initialize_gameobjects(self):
@@ -243,10 +258,21 @@ class Pong:
         self.user_input()
 
         self.check_collisions()
-        for ball in self.balls:
-            ball.reset()
+
+        if self.first_serve == True:
+            for ball in self.balls:
+                ball.reset()
 
         self.move_gameobjects()
+
+        for player in self.players:
+            win = player.check_win()
+            if win:
+                game_over = True
+                score = player.current_score
+                self.balls.clear()
+                self.paddles.clear()
+
         self.update_screen()
         self.clock.tick(GAME_SPEED)
 
@@ -257,6 +283,13 @@ class Pong:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    if self.first_serve == False:
+                        self.first_serve = True
+                    elif self.first_serve == True & (self.player1.win or self.player2.win):
+                        self.restart()
 
             keys_pressed = pygame.key.get_pressed()
             # left player
@@ -368,31 +401,47 @@ class Pong:
                                         ball.w, ball.h))
     
     def render_scores(self):
-        player1_score_surface = self.font.render("p1: " + str(self.player1.current_score), False, WHITE)
-        player2_score_surface = self.font.render("p2: " + str(self.player2.current_score), False, WHITE)
+        player1_score_surface = self.font.render("Tony: " + str(self.player1.current_score), False, WHITE)
+        player2_score_surface = self.font.render("Hojae: " + str(self.player2.current_score), False, WHITE)
         self.display.blit(player1_score_surface, (self.w/2 - player1_score_surface.get_width()/2, 
                                                   self.h - player1_score_surface.get_height() -
                                                   player2_score_surface.get_height()))
         self.display.blit(player2_score_surface, (self.w/2 - player2_score_surface.get_width()/2, 
                                                   self.h - player2_score_surface.get_height()))
+    
+    def render_win(self):
+        for player in self.players:
+            if player.win:
+                text_surface = self.font.render(player.name + " wins!", False, WHITE)
+                self.display.blit(text_surface, (self.w/2 - text_surface.get_width()/2, self.h/2 - text_surface.get_height()/2))
 
     def update_screen(self):
         # Clear the screen
         self.display.fill(BLACK)
 
-        # Render the paddles
-        self.render_paddles()
-        self.render_balls()
-        self.render_scores()
         
+        if (self.player1.win == True) or (self.player2.win == True):
+            self.render_win()
+        else:
+            # Render the paddles
+            self.render_paddles()
+            self.render_balls()
+            self.render_scores()
+
         # Update the display
         pygame.display.update()
+
+    def restart(self):
+        for player in self.players:
+            player.reset()
+            self.initialize_gameobjects()
 
 
 if __name__ == "__main__":
     game = Pong()
     
+    game_over = False
     while True:
         game_over, score = game.step_frame()
-        if game_over == True:
-            break
+        # if game_over == True:
+            # break

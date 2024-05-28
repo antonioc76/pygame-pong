@@ -11,8 +11,12 @@ WHITE = (255, 255, 255)
 
 GAME_SPEED = 60 # frames per second
 DEFAULT_PADDLE_SPEED = 5 # pixels
-MAX_BALL_SPEED = 10
+MAX_BALL_SPEED_X = 10
+MAX_BALL_SPEED_Y = 20
 DEFAULT_RESET_WAIT = GAME_SPEED # frames
+MAX_MOMENTUM = 100 # must be divisible by 10. Can be left alone, just tweak the scaling
+MOMENTUM_STEPS = MAX_MOMENTUM / np.gcd(MAX_MOMENTUM, 10)
+MOMENTUM_SCALING = 0.5 # 1 means standard rate of momentum scaling
 
 Point = namedtuple('Point', 'x, y')
 Speed_Vector = namedtuple('Speed_Vector', 'x, y')
@@ -35,6 +39,8 @@ class Paddle():
         self.speed = DEFAULT_PADDLE_SPEED
         self.color = color
         self.speed = Speed_Vector(0, 0)
+        self.momentum = 0
+        self.momentum_steps = MOMENTUM_STEPS
         self.on_ceiling = False
         self.on_floor = False
     
@@ -43,11 +49,26 @@ class Paddle():
 
     def move_by_speed(self):
         new_center = Point(self.center.x + self.speed.x, self.center.y + self.speed.y)
-        if new_center.y - self.h/2 < 0 or new_center.y + self.h/2 > self.game_h:
+        if new_center.y - self.h/2 < 0 or new_center.y + self.h/2 > self.game_h: # screen edges
             pass
         
         else:
+            self.increment_momentum()
+
             self.center = new_center
+        
+    def increment_momentum(self):
+        if self.speed.y == 0:
+            self.momentum = 0
+            return
+
+        next_momentum = self.momentum + self.speed.y
+
+        if (abs(self.momentum) == MAX_MOMENTUM) & (abs(next_momentum) < abs(self.momentum)): # direction change
+            self.momentum = 0
+
+        if abs(self.momentum) < MAX_MOMENTUM:
+            self.momentum += self.speed.y * MOMENTUM_SCALING
 
 class Ball():
     def __init__(self, global_center: Point, w, h, color:tuple, game_w, game_h):
@@ -58,46 +79,37 @@ class Ball():
         self.w = w
         self.h = h
         self.color = color
-        self.speed = 0
+        self.speed = Speed_Vector(0, 0)
         self.in_front_paddle1 = False
         self.in_front_paddle2 = False
         self.reset_wait = 0
 
     def clamp_speed(self):
-        if self.speed.x > MAX_BALL_SPEED:
-            new_speed = Speed_Vector(MAX_BALL_SPEED, self.speed.y)
+        if self.speed.x > MAX_BALL_SPEED_X:
+            new_speed = Speed_Vector(MAX_BALL_SPEED_X, self.speed.y)
             self.speed = new_speed
-        elif self.speed.x < -MAX_BALL_SPEED:
-            new_speed = Speed_Vector(-MAX_BALL_SPEED, self.speed.y)
+        elif self.speed.x < -MAX_BALL_SPEED_X:
+            new_speed = Speed_Vector(-MAX_BALL_SPEED_X, self.speed.y)
             self.speed = new_speed
 
-        if self.speed.y > MAX_BALL_SPEED:
-            new_speed = Speed_Vector(self.speed.x, MAX_BALL_SPEED)
+        if self.speed.y > MAX_BALL_SPEED_Y:
+            new_speed = Speed_Vector(self.speed.x, MAX_BALL_SPEED_Y)
             self.speed = new_speed
-        elif self.speed.y < -MAX_BALL_SPEED:
-            new_speed = Speed_Vector(self.speed.x, -MAX_BALL_SPEED)
+        elif self.speed.y < -MAX_BALL_SPEED_Y:
+            new_speed = Speed_Vector(self.speed.x, -MAX_BALL_SPEED_Y)
             self.speed = new_speed
     
     def change_speed(self, new_speed:Speed_Vector):
         self.speed = new_speed
+
         self.clamp_speed()
 
     def add_speed(self, x_add, y_add):
         new_speed_x = self.speed.x + x_add
         new_speed_y = self.speed.y + y_add
         new_speed = Speed_Vector(new_speed_x, new_speed_y)
+
         self.change_speed(new_speed)
-
-    def add_random_speed_y(self):
-        if self.speed.y < 0:
-            speed_y_add = np.random.randint(-abs(self.speed.x), 1)
-        elif self.speed.y > 0:
-            speed_y_add = np.random.randint(0, abs(self.speed.x) + 1)
-
-        if self.speed.y == 0:
-            speed_y_add = np.random.randint(-abs(self.speed.x), abs(self.speed.x) + 1)
-
-        self.add_speed(0, speed_y_add)
 
     def scale_speed(self, x_mult, y_mult):
         new_speed_x = self.speed.x * x_mult
@@ -138,6 +150,58 @@ class Ball():
         start_speed = Speed_Vector(start_speed_x, 0)
         self.change_speed(start_speed)
         print(self.speed)
+    
+    def get_hit(self, paddle:Paddle):
+        # generate random x speed increase
+        x_speed_scale = np.random.randint(100, 150) / 100
+
+        # add y speed based on momentum and current ball x speed
+        max_possible_y_speed = abs(self.speed.x)
+        min_possible_y_speed = 0
+
+        # generate possible y speeds
+        steps = paddle.momentum_steps
+        step_size = (max_possible_y_speed - min_possible_y_speed)/steps
+        positive_speed_possibilities = np.arange(min_possible_y_speed, max_possible_y_speed, step_size)
+        negative_speed_possibilities = -1 * positive_speed_possibilities
+
+        # select a speed based on paddle momentum
+        choice = None
+        momentum_magnitude = abs(paddle.momentum)
+        print(f"momentum magnitude {momentum_magnitude}")
+        if paddle.momentum > 0:
+            #y_speed_increment = np.random.choice(positive_speed_possibilities)
+            choice = int(momentum_magnitude/len(positive_speed_possibilities)) - 1
+            y_speed_increment = positive_speed_possibilities[choice]
+        elif paddle.momentum < 0:
+            #y_speed_increment = np.random.choice(negative_speed_possibilities)
+            choice = int(momentum_magnitude/len(negative_speed_possibilities)) - 1
+            y_speed_increment = negative_speed_possibilities[choice]
+        elif paddle.momentum == 0:
+            choice = None
+            y_speed_increment = 0
+        
+        new_speed = Speed_Vector(-1 * (self.speed.x * x_speed_scale), self.speed.y + y_speed_increment)
+        self.change_speed(new_speed)
+        self.fix_diagonals()
+        print(f"choice {choice}")
+    
+    def fix_diagonals(self):
+        # quad_1_angle = np.arctan(self.speed.y / self.speed.x)
+        # print(f"angle: {quad_1_angle * 180 / np.pi}")
+
+        # magnitude = np.sqrt(self.speed.x ** 2 + self.speed.y ** 2)
+        
+        # corrected_x = magnitude * np.cos(quad_1_angle)
+        # corrected_y = magnitude * np.sin(quad_1_angle)
+
+        # corrected_speed = Speed_Vector(corrected_x, corrected_y)
+
+        # print(f"magnitude {magnitude}")
+
+        # self.change_speed(corrected_speed)
+
+        return
 
 class Pong:
     def __init__(self, w=640, h=480):
@@ -249,13 +313,13 @@ class Pong:
         for ball in self.balls:
             # paddle 1
             # check if ball is in front of first paddle
-            if (ball.center.y > (self.paddle1.center.y - self.paddle1.h/2)) and (ball.center.y < (self.paddle1.center.y + self.paddle1.h/2)):
+            if (ball.center.y + ball.h/2 > (self.paddle1.center.y - self.paddle1.h/2)) and (ball.center.y - ball.h/2 < (self.paddle1.center.y + self.paddle1.h/2)):
                 ball.in_front_paddle1 = True
             else:
                 ball.in_front_paddle1 = False
             
             # paddle 2
-            if (ball.center.y > (self.paddle2.center.y - self.paddle1.h/2)) and (ball.center.y < (self.paddle2.center.y + self.paddle1.h/2)):
+            if (ball.center.y + ball.h/2 > (self.paddle2.center.y - self.paddle1.h/2)) and (ball.center.y - ball.h/2< (self.paddle2.center.y + self.paddle1.h/2)):
                 ball.in_front_paddle2 = True
             else:
                 ball.in_front_paddle2 = False
@@ -263,16 +327,12 @@ class Pong:
             # collide
             if (ball.center.x - ball.w/2 < self.paddle1.center.x + self.paddle1.w/2) & ball.in_front_paddle1:
                 print("hitting paddle 1")
-                speed_x_scale, speed_y_scale = self.get_random_speed_components()
-                ball.add_random_speed_y()
-                ball.scale_speed(-speed_x_scale, speed_y_scale)
+                ball.get_hit(self.paddle1)
                 print(ball.speed)
 
             if (ball.center.x + ball.w/2 > self.paddle2.center.x - self.paddle2.w/2) & ball.in_front_paddle2:
                 print("hitting paddle 2")
-                speed_x_scale, speed_y_scale = self.get_random_speed_components()
-                ball.add_random_speed_y()
-                ball.scale_speed(-speed_x_scale, speed_y_scale)
+                ball.get_hit(self.paddle2)
                 print(ball.speed)
         
     def get_random_speed_components(self):
@@ -300,7 +360,14 @@ class Pong:
     def render_paddles(self):
         for paddle in self.paddles:
             pygame.draw.rect(self.display, WHITE, pygame.Rect(paddle.center.x - paddle.w/2, paddle.center.y - paddle.h/2, paddle.w, paddle.h))
-            pygame.draw.rect(self.display, paddle.color, pygame.Rect(paddle.center.x, paddle.center.y, 2, 2))
+            normalization_factor = 100 / MAX_MOMENTUM
+            momentum_bar_size = (2 * abs(paddle.momentum) / 5) * normalization_factor
+
+            negative_momentum_displacement = 0
+            if paddle.momentum < 0:
+                negative_momentum_displacement = momentum_bar_size 
+
+            pygame.draw.rect(self.display, paddle.color, pygame.Rect(paddle.center.x, paddle.center.y - negative_momentum_displacement, 2, momentum_bar_size))
 
     def render_balls(self):
         for ball in self.balls:

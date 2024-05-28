@@ -13,6 +13,7 @@ GAME_SPEED = 60 # frames per second
 DEFAULT_PADDLE_SPEED = 5 # pixels
 MAX_BALL_SPEED_X = 10
 MAX_BALL_SPEED_Y = 20
+MAX_MAGNITUDE = np.sqrt(10**2 + 20**2)
 DEFAULT_RESET_WAIT = GAME_SPEED # frames
 MAX_MOMENTUM = 100 # must be divisible by 10. Can be left alone, just tweak the scaling
 MOMENTUM_STEPS = MAX_MOMENTUM / np.gcd(MAX_MOMENTUM, 10)
@@ -98,6 +99,17 @@ class Ball():
         elif self.speed.y < -MAX_BALL_SPEED_Y:
             new_speed = Speed_Vector(self.speed.x, -MAX_BALL_SPEED_Y)
             self.speed = new_speed
+
+        if self.speed.x == 0:
+            return
+        
+        magnitude = np.sqrt(self.speed.x**2 + self.speed.y ** 2)
+        angle = np.tan(self.speed.y / self.speed.x)
+        if magnitude > MAX_MAGNITUDE:
+            new_speed_x = MAX_MAGNITUDE * np.cos(angle)
+            new_speed_y = MAX_MAGNITUDE * np.sin(angle)
+            new_speed = Speed_Vector(new_speed_x, new_speed_y)
+            self.speed = new_speed
     
     def change_speed(self, new_speed:Speed_Vector):
         self.speed = new_speed
@@ -168,7 +180,6 @@ class Ball():
         # select a speed based on paddle momentum
         choice = None
         momentum_magnitude = abs(paddle.momentum)
-        print(f"momentum magnitude {momentum_magnitude}")
         if paddle.momentum > 0:
             #y_speed_increment = np.random.choice(positive_speed_possibilities)
             choice = int(momentum_magnitude/len(positive_speed_possibilities)) - 1
@@ -183,25 +194,6 @@ class Ball():
         
         new_speed = Speed_Vector(-1 * (self.speed.x * x_speed_scale), self.speed.y + y_speed_increment)
         self.change_speed(new_speed)
-        self.fix_diagonals()
-        print(f"choice {choice}")
-    
-    def fix_diagonals(self):
-        # quad_1_angle = np.arctan(self.speed.y / self.speed.x)
-        # print(f"angle: {quad_1_angle * 180 / np.pi}")
-
-        # magnitude = np.sqrt(self.speed.x ** 2 + self.speed.y ** 2)
-        
-        # corrected_x = magnitude * np.cos(quad_1_angle)
-        # corrected_y = magnitude * np.sin(quad_1_angle)
-
-        # corrected_speed = Speed_Vector(corrected_x, corrected_y)
-
-        # print(f"magnitude {magnitude}")
-
-        # self.change_speed(corrected_speed)
-
-        return
 
 class Pong:
     def __init__(self, w=640, h=480):

@@ -4,6 +4,7 @@ import numpy as np
 from enum import Enum
 import math
 from collections import namedtuple
+from agent import Agent, Direction
 
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -31,6 +32,7 @@ class Player():
         self.current_score = 0
         self.win = False
         self.paddle = Paddle(name)
+        self.agent = Agent()
 
     def score_points(self, points):
         self.current_score += points
@@ -210,7 +212,7 @@ class Ball():
         new_speed = Speed_Vector(-1 * (self.speed.x * x_speed_scale), self.speed.y + y_speed_increment)
         self.change_speed(new_speed)
 
-class Pong:
+class Pong_AI:
     def __init__(self, player1_name, player2_name, w=640, h=480):
         self.w = w
         self.h = h
@@ -451,7 +453,7 @@ class Pong:
 if __name__ == "__main__":
     player1_name = input("player 1 name: ")
     player2_name = input("player 2 name: ")
-    game = Pong(player1_name, player2_name)
+    game = Pong_AI(player1_name, player2_name)
     
     game_over = False
     while True:

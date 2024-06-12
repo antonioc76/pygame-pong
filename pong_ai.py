@@ -4,14 +4,16 @@ import numpy as np
 from enum import Enum
 import math
 from collections import namedtuple
-from agent import Agent, Direction
+from agent import Agent, Direction, GameStateParameters, State
+
+# TODO: normalize state
 
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 WHITE = (255, 255, 255)
 
-GAME_SPEED = 60 # frames per second
+GAME_SPEED = 1 # frames per second
 DEFAULT_PADDLE_SPEED = 6 # pixels
 MAX_BALL_SPEED_X = 10
 MAX_BALL_SPEED_Y = 20
@@ -214,6 +216,9 @@ class Ball():
 
 class Pong_AI:
     def __init__(self, player1_name, player2_name, w=640, h=480):
+        self.game_state_parameters = GameStateParameters(w, h, 
+                                                         MAX_MOMENTUM, MAX_BALL_SPEED_X, 
+                                                         MAX_BALL_SPEED_Y)
         self.w = w
         self.h = h
 
@@ -238,7 +243,33 @@ class Pong_AI:
     def initialize_players(self):
         self.player1 = Player(self.player1_name)
         self.player2 = Player(self.player2_name)
+        self.player1.agent.normalizedState.set_parameters(self.game_state_parameters)
+        self.player2.agent.normalizedState.set_parameters(self.game_state_parameters)
         self.players = [self.player1, self.player2]
+
+    def send_states(self):
+        player1_state = State(self.game_state_parameters, 
+                              self.player1.paddle.center.y, self.player1.paddle.speed.y, self.player1.paddle.momentum, 
+                              self.player2.paddle.center.y, self.player2.paddle.speed.y, self.player2.paddle.momentum,
+                              self.ball.center.x, self.ball.center.y, 
+                              self.ball.speed.x, self.ball.speed.y)
+        
+        player2_state = State(self.game_state_parameters, 
+                              self.player2.paddle.center.y, self.player2.paddle.speed.y, self.player2.paddle.momentum, 
+                              self.player1.paddle.center.y, self.player1.paddle.speed.y, self.player1.paddle.momentum,
+                              self.ball.center.x, self.ball.center.y, 
+                              self.ball.speed.x, self.ball.speed.y)
+        
+        player1_state.normalize()
+        player2_state.normalize()
+
+        print("sending state 1:")
+        player1_state.print_state()
+        self.player1.agent.set_normalized_state(player1_state)
+
+        print("sending state 2")
+        #player2_state.print_state()
+        self.player2.agent.set_normalized_state(player2_state)
 
     def initialize_gameobjects(self):
         # paddles
@@ -261,7 +292,7 @@ class Pong_AI:
         score = 0
         game_over = False
 
-        self.user_input()
+        self.agent_input()
 
         self.check_collisions()
 
@@ -282,9 +313,35 @@ class Pong_AI:
         self.update_screen()
         self.clock.tick(GAME_SPEED)
 
+        self.send_states()
+
         return game_over, score
     
-    def user_input(self):
+    def agent_input(self):
+        # left player
+        self.player1.agent.play_random_move()
+        if self.player1.agent.direction == Direction.neutral:
+            no_speed = Speed_Vector(0, 0)
+            self.player1.paddle.set_speed(no_speed)
+        elif self.player1.agent.direction == Direction.up:
+            up_speed = Speed_Vector(0, -DEFAULT_PADDLE_SPEED)
+            self.player1.paddle.set_speed(up_speed)
+        elif self.player1.agent.direction == Direction.down:
+            down_speed = Speed_Vector(0, DEFAULT_PADDLE_SPEED)
+            self.player1.paddle.set_speed(down_speed)
+
+        # right player
+        self.player2.agent.play_random_move()
+        if self.player2.agent.direction == Direction.neutral:
+            no_speed = Speed_Vector(0, 0)
+            self.player2.paddle.set_speed(no_speed)
+        elif self.player2.agent.direction == Direction.up:
+            up_speed = Speed_Vector(0, -DEFAULT_PADDLE_SPEED)
+            self.player2.paddle.set_speed(up_speed)
+        elif self.player2.agent.direction == Direction.down:
+            down_speed = Speed_Vector(0, DEFAULT_PADDLE_SPEED)
+            self.player2.paddle.set_speed(down_speed)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -298,26 +355,6 @@ class Pong_AI:
                         self.restart()
 
             keys_pressed = pygame.key.get_pressed()
-            # left player
-            if keys_pressed[pygame.K_w]:
-                up_speed = Speed_Vector(0, -DEFAULT_PADDLE_SPEED)
-                self.player1.paddle.set_speed(up_speed)
-            elif keys_pressed[pygame.K_s]:
-                down_speed = Speed_Vector(0, DEFAULT_PADDLE_SPEED)
-                self.player1.paddle.set_speed(down_speed)
-            else:
-                no_speed = Speed_Vector(0, 0)
-                self.player1.paddle.set_speed(no_speed)
-            # right player
-            if keys_pressed[pygame.K_UP]:
-                up_speed = Speed_Vector(0, -DEFAULT_PADDLE_SPEED)
-                self.player2.paddle.set_speed(up_speed)
-            elif keys_pressed[pygame.K_DOWN]:
-                down_speed = Speed_Vector(0, DEFAULT_PADDLE_SPEED)
-                self.player2.paddle.set_speed(down_speed)
-            else:
-                no_speed = Speed_Vector(0, 0)
-                self.player2.paddle.set_speed(no_speed)
 
     def check_collisions(self):
         # ball with ceiling or floor

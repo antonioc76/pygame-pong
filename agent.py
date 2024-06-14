@@ -37,19 +37,23 @@ class State():
         self.game_state_parameters = game_state_parameters
 
     def normalize_state(self):
-        self.my_center_y = self.normalize(0, self.game_state_parameters.game_h, self.my_center_y)
-        self.my_speed = self.normalize(-self.game_state_parameters.max_speed, self.game_state_parameters.max_speed, self.my_speed)
-        self.my_momentum = self.normalize(-self.game_state_parameters.max_momentum, self.game_state_parameters.max_momentum, self.my_momentum) # might need to change
-        self.opponent_center_y = self.normalize(0, self.game_state_parameters.game_h, self.opponent_center_y)
-        self.opponent_speed = self.normalize(-self.game_state_parameters.max_speed, self.game_state_parameters.max_speed, self.opponent_speed)
-        self.opponent_momentum = self.normalize(-self.game_state_parameters.max_momentum, self.game_state_parameters.max_momentum, self.opponent_momentum)
-        self.ball_center_x = self.normalize(0, self.game_state_parameters.game_w, self.ball_center_x)
-        self.ball_center_y = self.normalize(0, self.game_state_parameters.game_h, self.ball_center_y)
-        self.ball_speed_x = self.normalize(-self.game_state_parameters.max_ball_speed_x, self.game_state_parameters.max_ball_speed_x, self.ball_speed_x)
-        self.ball_speed_y = self.normalize(-self.game_state_parameters.max_ball_speed_y, self.game_state_parameters.max_ball_speed_y, self.ball_speed_y)
+        self.my_center_y = self.normalize_min_max(0, self.game_state_parameters.game_h, self.my_center_y)
+        self.my_speed = self.normalize_min_max(-self.game_state_parameters.max_speed, self.game_state_parameters.max_speed, self.my_speed)
+        self.my_momentum = self.normalize_min_max(-self.game_state_parameters.max_momentum, self.game_state_parameters.max_momentum, self.my_momentum) # might need to change
+        self.opponent_center_y = self.normalize_min_max(0, self.game_state_parameters.game_h, self.opponent_center_y)
+        self.opponent_speed = self.normalize_min_max(-self.game_state_parameters.max_speed, self.game_state_parameters.max_speed, self.opponent_speed)
+        self.opponent_momentum = self.normalize_min_max(-self.game_state_parameters.max_momentum, self.game_state_parameters.max_momentum, self.opponent_momentum)
+        self.ball_center_x = self.normalize_min_max(0, self.game_state_parameters.game_w, self.ball_center_x)
+        self.ball_center_y = self.normalize_min_max(0, self.game_state_parameters.game_h, self.ball_center_y)
+        self.ball_speed_x = self.normalize_min_max(-self.game_state_parameters.max_ball_speed_x, self.game_state_parameters.max_ball_speed_x, self.ball_speed_x)
+        self.ball_speed_y = self.normalize_min_max(-self.game_state_parameters.max_ball_speed_y, self.game_state_parameters.max_ball_speed_y, self.ball_speed_y)
+        
+        print(self.ball_speed_x)
 
-    def normalize(self, min, max, value):
-        normalized_value = value - min / (max - min)
+
+    def normalize_min_max(self, min, max, value):
+        normalized_value = (value - min) / (max - min)
+        print(f"normalizing value: {value} to {normalized_value}")
         return normalized_value
 
     def print_state(self):
@@ -70,10 +74,14 @@ class Agent():
 
         self.direction = Direction(random_number)
     
-    def set_normalized_state(self, normalized_state: State) -> None:
+    def set_normalized_state(self, state: State) -> None:
         print("state received: ")
-        normalized_state.print_state()
-        self.normalizedState = normalized_state
+        state.print_state()
+
+        state.normalize_state()
+        print("normalized state: ")
+        state.print_state()
+        self.normalizedState = state
 
 if __name__ == "__main__":
     my_agent = Agent()

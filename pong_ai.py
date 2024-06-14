@@ -260,8 +260,8 @@ class Pong_AI:
                               self.ball.center.x, self.ball.center.y, 
                               self.ball.speed.x, self.ball.speed.y)
         
-        player1_state.normalize_state()
-        player2_state.normalize_state()
+        #player1_state.normalize_state()
+        #player2_state.normalize_state()
 
         print("sending state 1:")
         player1_state.print_state()

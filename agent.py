@@ -7,9 +7,10 @@ class Direction(Enum):
     up = 2
 
 class GameStateParameters():
-    def __init__(self, game_w=0, game_h=0, max_momentum=0, max_ball_speed_x=0, max_ball_speed_y=0):
+    def __init__(self, game_w=0, game_h=0, max_paddle_speed=0, max_momentum=0, max_ball_speed_x=0, max_ball_speed_y=0):
         self.game_w = game_w
         self.game_h = game_h
+        self.max_speed = max_paddle_speed
         self.max_momentum = max_momentum
         self.max_ball_speed_x = max_ball_speed_x
         self.max_ball_speed_y = max_ball_speed_y
@@ -35,9 +36,22 @@ class State():
     def set_parameters(self, game_state_parameters:GameStateParameters):
         self.game_state_parameters = game_state_parameters
 
-    def normalize(self):
-        pass
-    
+    def normalize_state(self):
+        self.my_center_y = self.normalize(0, self.game_state_parameters.game_h, self.my_center_y)
+        self.my_speed = self.normalize(-self.game_state_parameters.max_speed, self.game_state_parameters.max_speed, self.my_speed)
+        self.my_momentum = self.normalize(-self.game_state_parameters.max_momentum, self.game_state_parameters.max_momentum, self.my_momentum) # might need to change
+        self.opponent_center_y = self.normalize(0, self.game_state_parameters.game_h, self.opponent_center_y)
+        self.opponent_speed = self.normalize(-self.game_state_parameters.max_speed, self.game_state_parameters.max_speed, self.opponent_speed)
+        self.opponent_momentum = self.normalize(-self.game_state_parameters.max_momentum, self.game_state_parameters.max_momentum, self.opponent_momentum)
+        self.ball_center_x = self.normalize(0, self.game_state_parameters.game_w, self.ball_center_x)
+        self.ball_center_y = self.normalize(0, self.game_state_parameters.game_h, self.ball_center_y)
+        self.ball_speed_x = self.normalize(-self.game_state_parameters.max_ball_speed_x, self.game_state_parameters.max_ball_speed_x, self.ball_speed_x)
+        self.ball_speed_y = self.normalize(-self.game_state_parameters.max_ball_speed_y, self.game_state_parameters.max_ball_speed_y, self.ball_speed_y)
+
+    def normalize(self, min, max, value):
+        normalized_value = value - min / (max - min)
+        return normalized_value
+
     def print_state(self):
         print("state: ")
         print(f"{self.my_center_y}, {self.my_speed}, {self.my_momentum}")

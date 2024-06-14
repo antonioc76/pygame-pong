@@ -216,7 +216,7 @@ class Ball():
 
 class Pong_AI:
     def __init__(self, player1_name, player2_name, w=640, h=480):
-        self.game_state_parameters = GameStateParameters(w, h, 
+        self.game_state_parameters = GameStateParameters(w, h, DEFAULT_PADDLE_SPEED,
                                                          MAX_MOMENTUM, MAX_BALL_SPEED_X, 
                                                          MAX_BALL_SPEED_Y)
         self.w = w
@@ -260,8 +260,8 @@ class Pong_AI:
                               self.ball.center.x, self.ball.center.y, 
                               self.ball.speed.x, self.ball.speed.y)
         
-        player1_state.normalize()
-        player2_state.normalize()
+        player1_state.normalize_state()
+        player2_state.normalize_state()
 
         print("sending state 1:")
         player1_state.print_state()
